@@ -8,13 +8,16 @@ on:
 
 jobs:
   build-and-test:
-    name: Build & Test (${{ matrix.os }})
+    name: Build & Test (${{ matrix.os }}, Python ${{ matrix.python-version }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-14]
-        python-version: ["3.12"]
+        include:
+          - os: ubuntu-22.04
+            python-version: "3.11"
+          - os: macos-14
+            python-version: "3.12"
 
     steps:
       - name: Checkout Repository
@@ -30,7 +33,12 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake ninja-build libllvm-20-ocaml-dev llvm-20 llvm-20-dev llvm-20-tools mlir-20-tools libmlir-20-dev
+          sudo apt-get install -y wget lsb-release software-properties-common gnupg cmake ninja-build
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 18
+          sudo apt-get install -y llvm-18-dev libmlir-18-dev mlir-18-tools
+          echo "/usr/lib/llvm-18/bin" >> $GITHUB_PATH
 
       - name: Install System Dependencies (macOS)
         if: runner.os == 'macOS'
@@ -40,6 +48,7 @@ jobs:
       - name: Install Python Dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
           pip install torch-mlir -f https://llvm.github.io/torch-mlir/package-index/ || echo "torch-mlir installed if wheel available"
           pip install -e ".[dev]"
 
@@ -51,12 +60,17 @@ jobs:
               -DLLVM_DIR=$(brew --prefix llvm)/lib/cmake/llvm \
               -DCMAKE_BUILD_TYPE=Release
           else
-            cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release || true
+            LLVM_PREFIX=$(llvm-config-18 --prefix 2>/dev/null || echo "/usr/lib/llvm-18")
+            echo "Using LLVM_PREFIX: $LLVM_PREFIX"
+            cmake -B build -G Ninja \
+              -DMLIR_DIR=$LLVM_PREFIX/lib/cmake/mlir \
+              -DLLVM_DIR=$LLVM_PREFIX/lib/cmake/llvm \
+              -DCMAKE_BUILD_TYPE=Release
           fi
 
       - name: Build C++ Tools & Passes
         run: |
-          cmake --build build --config Release || true
+          cmake --build build --config Release
 
       - name: Run Test Suite
         run: |

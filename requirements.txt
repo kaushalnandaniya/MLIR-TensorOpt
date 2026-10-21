@@ -1,6 +1,6 @@
 # Core Deep Learning & Tensor Frontend
 torch>=2.1.0
-torch-mlir>=20261001
+torch-mlir>=20231201
 
 # Numerical Computing & Formatting
 numpy>=1.26.0
