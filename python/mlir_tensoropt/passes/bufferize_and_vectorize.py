@@ -46,9 +46,11 @@ def apply_vectorization(
                 opt_bin,
                 tmp.name,
                 f"--mlir-tensoropt-vectorize=vector-width={vector_width_bits}",
+                "--allow-unregistered-dialect",
             ]
-            res = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            return res.stdout
+            res = subprocess.run(cmd, capture_output=True, text=True)
+            if res.returncode == 0 and res.stdout:
+                return res.stdout
 
     # Fallback to standard canonicalization
     with ir.Context() as ctx:
