@@ -45,10 +45,11 @@ def apply_loop_tiling(
         with tempfile.NamedTemporaryFile("w+", suffix=".mlir", delete=True) as tmp:
             tmp.write(ir_text)
             tmp.flush()
+            tile_str = ",".join(str(s) for s in config.tile_sizes)
             cmd = [
                 opt_bin,
                 tmp.name,
-                f"--mlir-tensoropt-loop-tiling",
+                f"--mlir-tensoropt-loop-tiling=tile-sizes={tile_str} unroll-factor={config.unroll_factor}",
             ]
             res = subprocess.run(cmd, capture_output=True, text=True, check=True)
             return res.stdout

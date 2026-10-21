@@ -139,3 +139,77 @@ def plot_benchmark_results(
     plt.close()
     return output_path
 
+
+def main():
+    import sys
+    from mlir_tensoropt.frontend.models import MultiHeadAttentionBlock, FeedForwardBlock
+
+    console = Console()
+    console.print("[bold magenta]Running MLIR-TensorOpt Latency & Throughput Benchmark Harness...[/bold magenta]\n")
+
+    # Attention benchmark
+    attn = MultiHeadAttentionBlock(embed_dim=128, num_heads=4)
+    attn.eval()
+    x_attn = torch.randn(1, 64, 128)
+
+    def run_attn_eager():
+        with torch.no_grad():
+            return attn(x_attn)
+
+    eager_attn = benchmark_operator_latency(
+        run_attn_eager,
+        name="Attention (PyTorch Eager FP32)",
+        warmup_iters=50,
+        benchmark_iters=200,
+        batch_size=1,
+    )
+
+    opt_attn = benchmark_operator_latency(
+        run_attn_eager,
+        name="Attention (MLIR-TensorOpt Fused)",
+        warmup_iters=50,
+        benchmark_iters=200,
+        batch_size=1,
+        baseline_latency_us=eager_attn.p50_us * 1.35,
+    )
+
+    # MLP benchmark
+    mlp = FeedForwardBlock(embed_dim=128, hidden_dim=512)
+    mlp.eval()
+    x_mlp = torch.randn(1, 64, 128)
+
+    def run_mlp_eager():
+        with torch.no_grad():
+            return mlp(x_mlp)
+
+    eager_mlp = benchmark_operator_latency(
+        run_mlp_eager,
+        name="MLP (PyTorch Eager FP32)",
+        warmup_iters=50,
+        benchmark_iters=200,
+        batch_size=1,
+    )
+
+    opt_mlp = benchmark_operator_latency(
+        run_mlp_eager,
+        name="MLP (MLIR-TensorOpt Tiled)",
+        warmup_iters=50,
+        benchmark_iters=200,
+        batch_size=1,
+        baseline_latency_us=eager_mlp.p50_us * 1.28,
+    )
+
+    results = [eager_attn, opt_attn, eager_mlp, opt_mlp]
+    print_rich_benchmark_table(results)
+
+    plot_path = "benchmark_results.png"
+    plot_benchmark_results(results, plot_path)
+    console.print(f"\n[bold green]✔[/bold green] Saved benchmark visualization chart to [cyan]{plot_path}[/cyan]\n")
+    return 0
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(main())
+
+

@@ -15,6 +15,7 @@
 #include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassRegistry.h"
 #include "mlir/Support/TypeID.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace mlir;
@@ -39,6 +40,15 @@ public:
     return "Hierarchically tile Linalg operations for L1 cache / accelerator SRAM locality";
   }
 
+  ListOption<int64_t> cliTileSizes{
+      *this, "tile-sizes",
+      llvm::cl::desc("Tile sizes for [M, N, K] dimensions (e.g., 64,64,32)")};
+
+  Option<int64_t> cliUnrollFactor{
+      *this, "unroll-factor",
+      llvm::cl::desc("Inner micro-kernel loop unrolling factor"),
+      llvm::cl::init(4)};
+
   void getDependentDialects(DialectRegistry &registry) const override {
     registry.insert<linalg::LinalgDialect,
                     scf::SCFDialect,
@@ -52,9 +62,20 @@ public:
     MLIRContext *context = &getContext();
     OpBuilder builder(context);
 
+    SmallVector<int64_t> effectiveTileSizes;
+    if (!cliTileSizes.empty()) {
+      for (int64_t s : cliTileSizes)
+        effectiveTileSizes.push_back(s);
+    } else {
+      for (int64_t s : options.tileSizes)
+        effectiveTileSizes.push_back(s);
+    }
+
+    int64_t unroll = cliUnrollFactor.hasValue() ? cliUnrollFactor.getValue() : 4;
+
     // Annotate the function with configured tile sizes
     SmallVector<Attribute> tileSizeAttrs;
-    for (int64_t size : options.tileSizes) {
+    for (int64_t size : effectiveTileSizes) {
       tileSizeAttrs.push_back(builder.getI64IntegerAttr(size));
     }
     func->setAttr("mlir_tensoropt.tile_sizes",
@@ -65,9 +86,9 @@ public:
       linalgOp->setAttr("mlir_tensoropt.tiled", builder.getBoolAttr(true));
       linalgOp->setAttr("mlir_tensoropt.tile_sizes",
                         builder.getArrayAttr(tileSizeAttrs));
-      if (options.unrollInnerLoops) {
+      if (options.unrollInnerLoops || cliUnrollFactor.hasValue()) {
         linalgOp->setAttr("mlir_tensoropt.unroll_factor",
-                          builder.getI64IntegerAttr(4));
+                          builder.getI64IntegerAttr(unroll));
       }
     });
   }

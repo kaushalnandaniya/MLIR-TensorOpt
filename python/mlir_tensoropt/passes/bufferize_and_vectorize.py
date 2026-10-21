@@ -42,7 +42,11 @@ def apply_vectorization(
         with tempfile.NamedTemporaryFile("w+", suffix=".mlir", delete=True) as tmp:
             tmp.write(ir_text)
             tmp.flush()
-            cmd = [opt_bin, tmp.name, "--mlir-tensoropt-vectorize"]
+            cmd = [
+                opt_bin,
+                tmp.name,
+                f"--mlir-tensoropt-vectorize=vector-width={vector_width_bits}",
+            ]
             res = subprocess.run(cmd, capture_output=True, text=True, check=True)
             return res.stdout
 

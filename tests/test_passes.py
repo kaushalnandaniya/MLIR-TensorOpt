@@ -48,3 +48,29 @@ def test_vectorization_pass():
     """Verify vectorization pass tags operations with SIMD width."""
     out = apply_vectorization(SAMPLE_IR, vector_width_bits=128)
     assert "mlir_tensoropt.vector" in out or "func.func" in out
+
+
+def test_loop_tiling_custom_sizes():
+    """Verify custom tile sizes [16, 16, 8] are propagated into IR attributes."""
+    out = apply_loop_tiling(SAMPLE_IR, config=TilingConfig(m_tile=16, n_tile=16, k_tile=8))
+    assert "[16, 16, 8]" in out
+
+
+def test_vectorization_custom_width():
+    """Verify custom 256-bit SIMD width is propagated into IR attributes."""
+    out = apply_vectorization(SAMPLE_IR, vector_width_bits=256)
+    assert "256 : i64" in out
+
+
+def test_attention_sample_mlir_file():
+    """Verify passes process the tests/mlir/attention_sample.mlir file."""
+    sample_path = Path(__file__).parent / "mlir" / "attention_sample.mlir"
+    assert sample_path.exists()
+    ir_text = sample_path.read_text()
+    fused = apply_attention_fusion(ir_text)
+    tiled = apply_loop_tiling(fused, config=TilingConfig(m_tile=64, n_tile=64, k_tile=32))
+    vec = apply_vectorization(tiled, vector_width_bits=128)
+    assert "attention_fusion_applied" in vec
+    assert "vector_width_bits = 128" in vec
+
+

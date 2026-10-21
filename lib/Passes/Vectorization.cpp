@@ -15,6 +15,7 @@
 #include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassRegistry.h"
 #include "mlir/Support/TypeID.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace mlir;
@@ -40,6 +41,16 @@ public:
     return "Vectorize structured Linalg operations into hardware SIMD vector instructions";
   }
 
+  Option<int64_t> cliVectorWidth{
+      *this, "vector-width",
+      llvm::cl::desc("SIMD vector width in bits (e.g., 128, 256, 512)"),
+      llvm::cl::init(128)};
+
+  Option<bool> cliEnableMasking{
+      *this, "enable-masking",
+      llvm::cl::desc("Enable hardware masked vector memory transfers"),
+      llvm::cl::init(true)};
+
   void getDependentDialects(DialectRegistry &registry) const override {
     registry.insert<vector::VectorDialect,
                     linalg::LinalgDialect,
@@ -52,18 +63,23 @@ public:
     MLIRContext *context = &getContext();
     OpBuilder builder(context);
 
+    int64_t width = cliVectorWidth.hasValue() ? cliVectorWidth.getValue()
+                                              : options.vectorWidthBits;
+    bool masking = cliEnableMasking.hasValue() ? cliEnableMasking.getValue()
+                                               : options.enableMasking;
+
     // Annotate the function with vector target configuration
     func->setAttr("mlir_tensoropt.vector_width_bits",
-                  builder.getI64IntegerAttr(options.vectorWidthBits));
+                  builder.getI64IntegerAttr(width));
     func->setAttr("mlir_tensoropt.vector_masking",
-                  builder.getBoolAttr(options.enableMasking));
+                  builder.getBoolAttr(masking));
 
     // Inspect structured ops and tag for hardware SIMD vector lowering
     func.walk([&](linalg::LinalgOp linalgOp) {
       linalgOp->setAttr("mlir_tensoropt.vectorized",
                         builder.getBoolAttr(true));
       linalgOp->setAttr("mlir_tensoropt.vector_width",
-                        builder.getI64IntegerAttr(options.vectorWidthBits / 32));
+                        builder.getI64IntegerAttr(width / 32));
     });
   }
 
