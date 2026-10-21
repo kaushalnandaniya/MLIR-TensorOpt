@@ -19,6 +19,7 @@
 #include "mlir/Pass/PassRegistry.h"
 #include "mlir/Support/TypeID.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
+#include "llvm/Config/llvm-config.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace mlir;
@@ -91,7 +92,11 @@ public:
       fusedCount++;
     });
 
+#if LLVM_VERSION_MAJOR >= 21
     (void)applyPatternsGreedily(func, std::move(patterns));
+#else
+    (void)applyPatternsAndFoldGreedily(func, std::move(patterns));
+#endif
   }
 };
 
