@@ -24,6 +24,7 @@ Makefile
 venv/
 ENV/
 env/
+.cache/
 
 # Distribution / packaging
 dist/

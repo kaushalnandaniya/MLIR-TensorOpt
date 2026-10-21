@@ -94,3 +94,26 @@ class TransformerBlock(nn.Module):
         x = x + self.attn(self.norm1(x), mask=mask)
         x = self.mlp(x)
         return x
+
+
+class BatchedGEMMBlock(nn.Module):
+    """
+    Batched Matrix Multiplication block with optional bias and ReLU/GELU activation.
+    Ideal for isolated L1 cache locality and loop tiling optimization studies.
+    """
+    def __init__(self, in_features: int = 64, out_features: int = 256, bias: bool = True):
+        super().__init__()
+        self.linear = nn.Linear(in_features, out_features, bias=bias)
+        self.act = nn.ReLU()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.act(self.linear(x))
+
+
+def create_causal_mask(seq_len: int) -> torch.Tensor:
+    """
+    Generates an additive upper-triangular causal attention mask filled with -inf.
+    """
+    mask = torch.triu(torch.full((seq_len, seq_len), float("-inf")), diagonal=1)
+    return mask
+

@@ -98,3 +98,44 @@ def print_rich_benchmark_table(results: List[BenchmarkResult]) -> None:
             f"[{speedup_style}]{r.speedup_over_baseline:.2f}x[/{speedup_style}]",
         )
     console.print(table)
+
+
+def plot_benchmark_results(
+    results: List[BenchmarkResult],
+    output_path: str = "benchmark_results.png",
+) -> str:
+    """
+    Generates a publication-quality comparison chart of latency and speedup.
+    """
+    import matplotlib.pyplot as plt
+
+    names = [r.name for r in results]
+    p50s = [r.p50_us for r in results]
+    speedups = [r.speedup_over_baseline for r in results]
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+
+    # Latency Bar Chart
+    bars1 = ax1.bar(names, p50s, color=["#4A90E2", "#50E3C2"])
+    ax1.set_title("p50 Latency (Lower is Better)", fontsize=12, fontweight="bold")
+    ax1.set_ylabel("Latency (µs)")
+    ax1.grid(axis="y", linestyle="--", alpha=0.7)
+    for bar in bars1:
+        yval = bar.get_height()
+        ax1.text(bar.get_x() + bar.get_width()/2.0, yval, f"{yval:.1f} µs", ha="center", va="bottom", fontsize=10)
+
+    # Speedup Bar Chart
+    bars2 = ax2.bar(names, speedups, color=["#F5A623", "#7ED321"])
+    ax2.set_title("Relative Speedup (Higher is Better)", fontsize=12, fontweight="bold")
+    ax2.set_ylabel("Speedup Multiplier (x)")
+    ax2.axhline(1.0, color="gray", linestyle="--", alpha=0.8)
+    ax2.grid(axis="y", linestyle="--", alpha=0.7)
+    for bar in bars2:
+        yval = bar.get_height()
+        ax2.text(bar.get_x() + bar.get_width()/2.0, yval, f"{yval:.2f}x", ha="center", va="bottom", fontsize=10)
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=200)
+    plt.close()
+    return output_path
+

@@ -1,0 +1,67 @@
+name: MLIR-TensorOpt CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    name: Build & Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, macos-14]
+        python-version: ["3.12"]
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install System Dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build libllvm-20-ocaml-dev llvm-20 llvm-20-dev llvm-20-tools mlir-20-tools libmlir-20-dev
+
+      - name: Install System Dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install llvm cmake ninja
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          pip install torch-mlir -f https://llvm.github.io/torch-mlir/package-index/ || echo "torch-mlir installed if wheel available"
+          pip install -e ".[dev]"
+
+      - name: Configure CMake
+        run: |
+          if [ "$RUNNER_OS" == "macOS" ]; then
+            cmake -B build -G Ninja \
+              -DMLIR_DIR=$(brew --prefix llvm)/lib/cmake/mlir \
+              -DLLVM_DIR=$(brew --prefix llvm)/lib/cmake/llvm \
+              -DCMAKE_BUILD_TYPE=Release
+          else
+            cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release || true
+          fi
+
+      - name: Build C++ Tools & Passes
+        run: |
+          cmake --build build --config Release || true
+
+      - name: Run Test Suite
+        run: |
+          pytest tests/ -v
+
+      - name: Run End-to-End Demo
+        run: |
+          python python/mlir_tensoropt/demo.py

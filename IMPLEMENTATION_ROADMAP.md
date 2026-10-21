@@ -11,12 +11,12 @@
 - [x] **Phase 0**: Project Specification, Architecture Design & Alignment *(Completed)*
 - [x] **Phase 1**: Environment & Dependencies Setup (LLVM/MLIR toolchain, Python environment) *(Completed)*
 - [x] **Phase 2**: Project Skeleton & Build System (CMakeLists.txt, include/, lib/, tools/, python/) *(Completed)*
-- [ ] **Phase 3**: Frontend Importer (PyTorch Model $\to$ MLIR Torch/Linalg Dialect)
-- [ ] **Phase 4**: Custom Optimization Passes (Attention Fusion, Loop Tiling, Vectorization)
-- [ ] **Phase 5**: Execution Engine & Lowering to LLVM JIT
-- [ ] **Phase 6**: Numerical Divergence Verification Suite (FP32 vs BF16 vs FP8)
-- [ ] **Phase 7**: Performance Benchmarking Suite (Latency, Throughput, Cache Locality)
-- [ ] **Phase 8**: Testing, Documentation, Git Repo & CI Setup
+- [x] **Phase 3**: Frontend Importer (PyTorch Model $\to$ MLIR Torch/Linalg Dialect) *(Completed)*
+- [x] **Phase 4**: Custom Optimization Passes (Attention Fusion, Loop Tiling, Vectorization) *(Completed)*
+- [x] **Phase 5**: Execution Engine & Lowering to LLVM JIT *(Completed)*
+- [x] **Phase 6**: Numerical Divergence Verification Suite (FP32 vs BF16 vs FP8) *(Completed)*
+- [x] **Phase 7**: Performance Benchmarking Suite (Latency, Throughput, Cache Locality) *(Completed)*
+- [x] **Phase 8**: Testing, Documentation, Git Repo & CI Setup *(Completed)*
 
 ---
 

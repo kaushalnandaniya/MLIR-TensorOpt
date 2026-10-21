@@ -69,3 +69,32 @@ def test_export_to_linalg_on_tensors():
     mod = export_torch_to_mlir(model, a, b, output_type="linalg-on-tensors")
     ir_str = str(mod)
     assert "linalg.matmul" in ir_str or "linalg." in ir_str
+
+
+def test_batched_gemm_eager_and_export():
+    """Verify BatchedGEMMBlock eager execution and export to MLIR."""
+    from mlir_tensoropt.frontend.models import BatchedGEMMBlock
+    gemm = BatchedGEMMBlock(in_features=32, out_features=64)
+    gemm.eval()
+    x = torch.randn(4, 32)
+    out = gemm(x)
+    assert out.shape == (4, 64)
+    mod = export_torch_to_mlir(gemm, x, output_type="linalg-on-tensors")
+    assert "linalg." in str(mod)
+
+
+def test_causal_mask_attention():
+    """Verify MultiHeadAttention with additive causal masking."""
+    from mlir_tensoropt.frontend.models import create_causal_mask
+    seq_len = 16
+    mask = create_causal_mask(seq_len)
+    assert mask.shape == (seq_len, seq_len)
+    assert mask[0, 1] == float("-inf")
+    assert mask[1, 0] == 0.0
+
+    model = MultiHeadAttentionBlock(embed_dim=64, num_heads=2)
+    model.eval()
+    x = torch.randn(1, seq_len, 64)
+    out = model(x, mask=mask)
+    assert out.shape == (1, seq_len, 64)
+

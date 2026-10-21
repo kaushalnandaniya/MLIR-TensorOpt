@@ -8,25 +8,47 @@ import torch
 from torch_mlir import ir, passmanager
 from torch_mlir.execution_engine import ExecutionEngine
 
+import shutil
+import subprocess
+import tempfile
+from pathlib import Path
+
 def lower_to_llvm_dialect(module: Union[ir.Module, str]) -> str:
     """
     Lowers an optimized MLIR module (Linalg/MemRef/Vector) down to the LLVM Dialect.
 
-    Pipeline steps:
-    1. convert-vector-to-scf
-    2. convert-linalg-to-llvm (or convert-linalg-to-loops)
-    3. expand-strided-metadata
-    4. finalize-memref-to-llvm
-    5. convert-scf-to-cf
-    6. convert-cf-to-llvm
-    7. convert-func-to-llvm
-    8. reconcile-unrealized-casts
+    Pipeline:
+    1. one-shot-bufferize
+    2. convert-linalg-to-loops
+    3. convert-scf-to-cf
+    4. convert-to-llvm
+    5. reconcile-unrealized-casts
     """
     ir_text = str(module)
 
-    # Standard lowering pipeline for execution
+    # First attempt: Try system mlir-opt if available for full dialect coverage
+    mlir_opt = shutil.which("mlir-opt") or "/opt/homebrew/opt/llvm/bin/mlir-opt"
+    if Path(mlir_opt).exists():
+        with tempfile.NamedTemporaryFile("w+", suffix=".mlir", delete=True) as tmp:
+            tmp.write(ir_text)
+            tmp.flush()
+            cmd = [
+                mlir_opt,
+                tmp.name,
+                "--one-shot-bufferize=bufferize-function-boundaries=true",
+                "--convert-linalg-to-loops",
+                "--convert-scf-to-cf",
+                "--convert-to-llvm",
+                "--reconcile-unrealized-casts",
+            ]
+            res = subprocess.run(cmd, capture_output=True, text=True)
+            if res.returncode == 0 and res.stdout:
+                return res.stdout
+
+    # Fallback to Python passmanager pipeline
     pipeline_passes = [
         "builtin.module(",
+        "one-shot-bufferize{bufferize-function-boundaries=true},",
         "func.func(convert-linalg-to-affine-loops),",
         "lower-affine,",
         "func.func(convert-scf-to-cf),",
@@ -44,8 +66,24 @@ def lower_to_llvm_dialect(module: Union[ir.Module, str]) -> str:
             pm.run(mod.operation)
             return str(mod)
         except Exception:
-            # Return current module if lower-level dialect lowering requires custom hooks
             return ir_text
+
+
+def translate_to_llvm_ir(llvm_dialect_mlir: str) -> str:
+    """
+    Translates an MLIR LLVM Dialect module into native LLVM IR text using mlir-translate.
+    """
+    mlir_trans = shutil.which("mlir-translate") or "/opt/homebrew/opt/llvm/bin/mlir-translate"
+    if Path(mlir_trans).exists():
+        with tempfile.NamedTemporaryFile("w+", suffix=".mlir", delete=True) as tmp:
+            tmp.write(llvm_dialect_mlir)
+            tmp.flush()
+            cmd = [mlir_trans, tmp.name, "--mlir-to-llvmir"]
+            res = subprocess.run(cmd, capture_output=True, text=True)
+            if res.returncode == 0:
+                return res.stdout
+    return "; MLIR translation requires mlir-translate"
+
 
 
 class MLIRExecutionEngine:
