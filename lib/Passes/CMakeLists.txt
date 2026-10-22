@@ -1,5 +1,7 @@
 add_mlir_library(MLIRTensorOptPasses
+  AlgebraicSimplification.cpp
   AttentionFusion.cpp
+  FlashAttentionTiling.cpp
   LoopTiling.cpp
   Vectorization.cpp
 

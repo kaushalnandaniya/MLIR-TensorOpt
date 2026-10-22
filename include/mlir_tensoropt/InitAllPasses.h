@@ -8,7 +8,9 @@
 
 #pragma once
 
+#include "mlir_tensoropt/Passes/AlgebraicSimplification.h"
 #include "mlir_tensoropt/Passes/AttentionFusion.h"
+#include "mlir_tensoropt/Passes/FlashAttentionTiling.h"
 #include "mlir_tensoropt/Passes/LoopTiling.h"
 #include "mlir_tensoropt/Passes/Vectorization.h"
 
@@ -17,7 +19,9 @@ namespace tensoropt {
 
 /// Registers all MLIR-TensorOpt optimization and lowering passes.
 inline void registerAllPasses() {
+  registerAlgebraicSimplificationPass();
   registerAttentionFusionPass();
+  registerFlashAttentionTilingPass();
   registerLoopTilingPass();
   registerVectorizationPass();
 }

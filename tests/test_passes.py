@@ -25,9 +25,10 @@ module {
 def test_optimizer_binary_flags():
     """Verify all pass options are exposed via mlir-tensoropt-opt."""
     bin_path = get_optimizer_binary()
-    assert bin_path != ""
     res = subprocess.run([bin_path, "--help"], capture_output=True, text=True, check=True)
+    assert "--mlir-tensoropt-algebraic-simplification" in res.stdout
     assert "--mlir-tensoropt-attention-fusion" in res.stdout
+    assert "--mlir-tensoropt-flash-attention-tiling" in res.stdout
     assert "--mlir-tensoropt-loop-tiling" in res.stdout
     assert "--mlir-tensoropt-vectorize" in res.stdout
 
